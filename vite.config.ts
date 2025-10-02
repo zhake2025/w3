@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react-swc'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/w1',
+  base: '/w3',
   plugins: [
     react(),
     VitePWA({
@@ -42,23 +42,19 @@ export default defineConfig({
 
   // 开发服务器配置
   server: {
-    port: 5173,
-    host: process.env.TAURI_DEV_HOST || '0.0.0.0', // 使用 Tauri 提供的主机地址
+    port: 5174,
+    host: 'localhost', // 使用 localhost 而不是 0.0.0.0
     cors: false, // 完全禁用 CORS 检查
-    strictPort: true, // 严格端口模式
+    strictPort: false, // 允许端口自动切换
     headers: {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': '*',
       'Access-Control-Allow-Headers': '*',
     },
     // 配置 HMR WebSocket 以支持 Tauri 移动端
-    hmr: process.env.TAURI_DEV_HOST ? {
-      protocol: 'ws',
-      host: process.env.TAURI_DEV_HOST,
-      port: 5174,
-    } : {
-      port: 5174,
-      host: '0.0.0.0'
+    hmr: {
+      port: 5175,
+      host: 'localhost'
     },
     proxy: {
       // Exa API代理
@@ -173,7 +169,6 @@ export default defineConfig({
       'react-router-dom',
       '@mui/material',
       '@mui/system',
-      '@mui/utils',
       '@reduxjs/toolkit'
     ],
     force: true

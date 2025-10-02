@@ -207,7 +207,7 @@ const MotionSidebar = React.memo(function MotionSidebar({
               position: 'fixed',
               left: 0,
               top: 0,
-              width: 30, // 30px触发区域，与原SwipeableDrawer一致
+              width: 15, // 减少触发区域宽度，从30px减少到15px，降低误触概率
               height: '100vh',
               zIndex: 1300,
               backgroundColor: 'transparent',
@@ -218,10 +218,10 @@ const MotionSidebar = React.memo(function MotionSidebar({
                 left: 0,
                 top: '50%',
                 transform: 'translateY(-50%)',
-                width: 3,
+                width: 2, // 相应减少视觉提示宽度
                 height: 40,
                 backgroundColor: 'rgba(255, 255, 255, 0.3)',
-                borderRadius: '0 3px 3px 0',
+                borderRadius: '0 2px 2px 0',
                 opacity: 0,
                 transition: 'opacity 0.3s ease',
               },
@@ -230,16 +230,58 @@ const MotionSidebar = React.memo(function MotionSidebar({
               }
             }}
             onTouchStart={(e) => {
-              // 🚀 优化的手势检测 - 比SwipeableDrawer更轻量
+              // 🚀 优化的手势检测 - 添加输入框检测逻辑
               const touch = e.touches[0];
-              if (touch.clientX < 30) {
-                console.log('📱 移动端边缘滑动触发');
-                if (onMobileToggleRef.current) {
-                  onMobileToggleRef.current();
-                } else {
-                  setShowSidebar(true);
-                }
+              
+              // 检查触摸点是否在缩小的触发区域内
+              if (touch.clientX > 15) return;
+              
+              // 🔧 新增：检测是否在输入框或文本区域内操作
+              const target = e.target as HTMLElement;
+              const isInputElement = target.tagName === 'INPUT' || 
+                                   target.tagName === 'TEXTAREA' || 
+                                   target.contentEditable === 'true' ||
+                                   target.closest('input') ||
+                                   target.closest('textarea') ||
+                                   target.closest('[contenteditable="true"]') ||
+                                   target.closest('[role="textbox"]');
+              
+              // 如果在输入框内操作，不触发侧边栏
+              if (isInputElement) {
+                console.log('📱 检测到输入框操作，跳过侧边栏触发');
+                return;
               }
+              
+              // 🔧 新增：检测是否在聊天输入区域
+              const isChatInputArea = target.closest('.chat-input-container') ||
+                                    target.closest('[data-testid="chat-input"]') ||
+                                    target.closest('.MuiInputBase-root');
+              
+              if (isChatInputArea) {
+                console.log('📱 检测到聊天输入区域操作，跳过侧边栏触发');
+                return;
+              }
+              
+              // 🔧 新增：增加触摸时长检测，避免快速滑动误触
+              const touchStartTime = Date.now();
+              
+              const handleTouchEnd = () => {
+                const touchDuration = Date.now() - touchStartTime;
+                // 只有触摸时长超过100ms才认为是有意的边缘滑动
+                if (touchDuration > 100) {
+                  console.log('📱 移动端边缘滑动触发');
+                  if (onMobileToggleRef.current) {
+                    onMobileToggleRef.current();
+                  } else {
+                    setShowSidebar(true);
+                  }
+                }
+                // 清理事件监听器
+                document.removeEventListener('touchend', handleTouchEnd);
+              };
+              
+              // 添加临时的touchend监听器
+              document.addEventListener('touchend', handleTouchEnd, { once: true });
             }}
           />
         )}

@@ -378,6 +378,9 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
   const [isHovering, setIsHovering] = React.useState(false);
   const [showTooltip, setShowTooltip] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
+  
+  // 添加移动端检测
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   const handleMouseMove = React.useCallback((e: React.MouseEvent) => {
     if (containerRef.current) {
@@ -390,9 +393,12 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
   }, []);
 
   const handleMouseEnter = React.useCallback(() => {
+    // 移动端不显示悬浮提示框，避免遮挡问题
+    if (isMobile) return;
+    
     setIsHovering(true);
     setShowTooltip(true);
-  }, []);
+  }, [isMobile]);
 
   const handleMouseLeave = React.useCallback(() => {
     setIsHovering(false);
@@ -404,20 +410,30 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
     onCopy(e);
   }, [onCopy]);
 
+  // 移动端点击处理 - 使用Dialog替代悬浮提示框
+  const [mobileDialogOpen, setMobileDialogOpen] = React.useState(false);
+  
+  const handleMobileClick = React.useCallback(() => {
+    if (isMobile) {
+      setMobileDialogOpen(true);
+    }
+  }, [isMobile]);
+
   return (
     <Box sx={{ mb: 2, position: 'relative' }}>
       <Box
         ref={containerRef}
-        onMouseMove={handleMouseMove}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
+        onMouseMove={!isMobile ? handleMouseMove : undefined}
+        onMouseEnter={!isMobile ? handleMouseEnter : undefined}
+        onMouseLeave={!isMobile ? handleMouseLeave : undefined}
+        onClick={isMobile ? handleMobileClick : undefined}
         sx={{
           display: 'flex',
           alignItems: 'center',
           p: 1.5,
           backgroundColor: theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
           borderRadius: '20px',
-          cursor: 'default',
+          cursor: isMobile ? 'pointer' : 'default',
           border: `2px solid ${theme.palette.primary.main}30`,
           position: 'relative',
           overflow: 'visible',
@@ -432,7 +448,7 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
       >
         <Sparkles size={20} color={theme.palette.primary.main} style={{ marginRight: 12 }} />
         <Typography variant="body2" sx={{ fontWeight: 500 }}>
-          {isThinking ? '💫 思维粒子活跃中...' : '✨ 悬浮查看思考过程'}
+          {isThinking ? '💫 思维粒子活跃中...' : (isMobile ? '✨ 点击查看思考过程' : '✨ 悬浮查看思考过程')}
         </Typography>
         <Chip
           label={`${formattedThinkingTime}s`}
@@ -478,7 +494,9 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
           </>
         )}
       </Box>
-      {showTooltip && (
+      
+      {/* 桌面端悬浮提示框 - 只在非移动端显示 */}
+      {!isMobile && showTooltip && (
         <Box
           sx={{
             position: 'fixed',
@@ -492,7 +510,7 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
             border: `1px solid ${theme.palette.primary.main}40`,
             borderRadius: '12px',
             boxShadow: `0 8px 32px ${theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.15)'}`,
-            zIndex: 9999,
+            zIndex: 1500, // 降低z-index，避免遮挡后续内容
             p: 2,
             pointerEvents: 'none',
             opacity: isHovering ? 1 : 0,
@@ -524,6 +542,59 @@ const FloatingRenderer: React.FC<FloatingRendererProps> = React.memo(({
             <Markdown content={content} allowHtml={false} />
           </Box>
         </Box>
+      )}
+      
+      {/* 移动端Dialog - 替代悬浮提示框 */}
+      {isMobile && (
+        <Dialog
+          open={mobileDialogOpen}
+          onClose={() => setMobileDialogOpen(false)}
+          maxWidth="md"
+          fullWidth
+          PaperProps={{
+            sx: {
+              backgroundColor: theme.palette.mode === 'dark' ? 'rgba(0,0,0,0.9)' : 'rgba(255,255,255,0.95)',
+              backdropFilter: 'blur(10px)',
+              margin: 1, // 移动端留出边距
+              maxHeight: '80vh' // 限制最大高度，避免遮挡
+            }
+          }}
+        >
+          <DialogContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Typography variant="h6">💭 AI思考过程</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Chip
+                  label={`耗时 ${formattedThinkingTime}s`}
+                  color={isThinking ? "warning" : "primary"}
+                  size="small"
+                />
+                <IconButton
+                  onClick={(e) => {
+                    onCopy(e);
+                    setMobileDialogOpen(false);
+                  }}
+                  color={copied ? "success" : "default"}
+                  size="small"
+                >
+                  <Copy size={18} />
+                </IconButton>
+                <IconButton 
+                  onClick={() => setMobileDialogOpen(false)}
+                  size="small"
+                >
+                  <X size={18} />
+                </IconButton>
+              </Box>
+            </Box>
+            <Box sx={{
+              ...getThinkingScrollbarStyles(theme),
+              maxHeight: '60vh' // 移动端限制高度
+            }}>
+              <Markdown content={content} allowHtml={false} />
+            </Box>
+          </DialogContent>
+        </Dialog>
       )}
     </Box>
   );
